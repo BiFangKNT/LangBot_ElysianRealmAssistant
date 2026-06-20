@@ -15,24 +15,23 @@ import hashlib
 # 注册插件
 @register(name="ElysianRealmAssistant", description="崩坏3往世乐土攻略助手", version="1.7.0", author="BiFangKNT")
 class ElysianRealmAssistant(BasePlugin):
-
     # 插件加载时触发
     def __init__(self, host: APIHost):
         super().__init__(host)
         self.config = {}
-        
+
         self.url_pattern = re.compile(
-            rf'''
+            r"""
             ^(?:
-                ((.{{0,5}})乐土list) |                        # 匹配0-5个字符后跟"乐土list"
-                (乐土推荐\d{{0,2}}) |                         # 匹配"乐土推荐"后跟0-2个数字
+                ((.{0,5})乐土list) |                        # 匹配0-5个字符后跟"乐土list"
+                (乐土推荐\d{0,2}) |                         # 匹配"乐土推荐"后跟0-2个数字
                 (全部乐土推荐) |                              # 匹配"全部乐土推荐"
-                (?P<角色乐土>(.{{1,5}})乐土\d?) |             # 匹配1-5个字符后跟"乐土"，可选择性地跟随一个数字
-                (?P<角色流派>(.{{1,5}})(\p{{Han}}{{2}})流) |  # 匹配1-5个字符，后跟任意两个中文字符和"流"
+                (?P<角色乐土>(.{1,5})乐土\d?) |             # 匹配1-5个字符后跟"乐土"，可选择性地跟随一个数字
+                (?P<角色流派>(.{1,5})(\p{Han}{2})流) |  # 匹配1-5个字符，后跟任意两个中文字符和"流"
                 (?P<添加命令>RealmCommand\s+add\s+(\w+)\s+([^,]+(?:,[^,]+)*))  # 匹配添加命令
             )$
-            ''',
-            re.VERBOSE | re.UNICODE
+            """,
+            re.VERBOSE | re.UNICODE,
         )
 
     # 异步初始化
@@ -47,11 +46,11 @@ class ElysianRealmAssistant(BasePlugin):
 
     async def load_config(self):
         plugin_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(plugin_dir, 'ElysianRealmConfig.yaml')
+        config_path = os.path.join(plugin_dir, "ElysianRealmConfig.yaml")
 
         def _load() -> dict:
             try:
-                with open(config_path, 'r', encoding='utf-8') as file:
+                with open(config_path, encoding="utf-8") as file:
                     return yaml.safe_load(file) or {}
             except FileNotFoundError:
                 self.ap.logger.info(f"配置文件未找到: {config_path}")
@@ -82,12 +81,12 @@ class ElysianRealmAssistant(BasePlugin):
         if optimized_message:
             # 输出信息
             self.ap.logger.debug(f"处理后的消息: {optimized_message}")  # 注意：使用base64的话，此项输出会非常长
-            
+
             # 添加重试逻辑
             max_retries = 3
             for attempt in range(max_retries):
                 try:
-                    ctx.add_return('reply', optimized_message)
+                    ctx.add_return("reply", optimized_message)
                     self.ap.logger.info("消息已成功添加到返回队列")
                     break
                 except Exception as e:
@@ -107,26 +106,28 @@ class ElysianRealmAssistant(BasePlugin):
 
     async def convert_message(self, message, ctx):
         # 统一的回复逻辑
-        await ctx.reply(platform_types.MessageChain([platform_types.Plain(f"已收到指令：{message}\n正在为您查询攻略……")]))
-        
+        await ctx.reply(
+            platform_types.MessageChain([platform_types.Plain(f"已收到指令：{message}\n正在为您查询攻略……")])
+        )
+
         # 检查是否是添加命令
         match = self.url_pattern.search(message)
-        if match and match.group('添加命令'):
-            return await self.handle_add_command(match.group('添加命令'))
-        
+        if match and match.group("添加命令"):
+            return await self.handle_add_command(match.group("添加命令"))
+
         if message == "乐土list":
             return [platform_types.Plain(yaml.dump(self.config, allow_unicode=True))]
-        
+
         if message == "全部乐土推荐":
             return await self.handle_recommendation(ctx, True)
-        
+
         if "乐土推荐" in message:
             sequence = int(message.split("乐土推荐")[1] or 1)
             return await self.handle_recommendation(ctx, False, sequence)
 
         if "乐土list" in message:
             return self.handle_list_query(message)
-        
+
         # 其他情况
         return await self.handle_normal_query(message, ctx)
 
@@ -139,10 +140,10 @@ class ElysianRealmAssistant(BasePlugin):
 
         try:
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'application/json, text/plain, */*',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Connection': 'keep-alive'
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                "Connection": "keep-alive",
             }
 
             async with httpx.AsyncClient(headers=headers, timeout=10.0) as client:
@@ -152,7 +153,7 @@ class ElysianRealmAssistant(BasePlugin):
 
                 posts = data.get("data", {}).get("list", [])
 
-                pattern = r'往世乐土丨V\d+\.\d+[一二三四五六七八九十]+期推荐角色BUFF表'
+                pattern = r"往世乐土丨V\d+\.\d+[一二三四五六七八九十]+期推荐角色BUFF表"
 
                 elysian_posts = []
                 for post_item in posts:
@@ -170,7 +171,7 @@ class ElysianRealmAssistant(BasePlugin):
                     if len(images) > 1:
                         for idx, img_url in enumerate(images):
                             url_md5 = hashlib.md5(img_url.encode()).hexdigest()
-                            self.ap.logger.info(f"预缓存第 {idx+1}/{len(images)} 张图片: {url_md5}")
+                            self.ap.logger.info(f"预缓存第 {idx + 1}/{len(images)} 张图片: {url_md5}")
                             await self.get_image(img_url, ctx, client=client, preload=True)
 
                         if 1 <= sequence < len(images):
@@ -180,14 +181,18 @@ class ElysianRealmAssistant(BasePlugin):
                                 if is_all:
                                     image_urls = images[2:]
                                     return [
-                                        platform_types.Plain(f"标题：{subject}\n更新时间：{reply_time}\n本期乐土推荐为：\n"),
+                                        platform_types.Plain(
+                                            f"标题：{subject}\n更新时间：{reply_time}\n本期乐土推荐为：\n"
+                                        ),
                                         image_data,
-                                        platform_types.Plain("\n" + "\n".join(image_urls))
+                                        platform_types.Plain("\n" + "\n".join(image_urls)),
                                     ]
                                 else:
                                     return [
-                                        platform_types.Plain(f"标题：{subject}\n更新时间：{reply_time}\n本期乐土推荐为：\n"),
-                                        image_data
+                                        platform_types.Plain(
+                                            f"标题：{subject}\n更新时间：{reply_time}\n本期乐土推荐为：\n"
+                                        ),
+                                        image_data,
                                     ]
                         else:
                             self.ap.logger.info(f"序号超出范围，序号为：{sequence}")
@@ -204,7 +209,7 @@ class ElysianRealmAssistant(BasePlugin):
             if any(query in value for value in values):  # 检查是否在任何一个值中
                 self.ap.logger.info(f"找到匹配: {key}: {values}")
                 matched_pairs[key] = values
-        
+
         if matched_pairs:
             return [platform_types.Plain(yaml.dump(matched_pairs, allow_unicode=True))]
         return [platform_types.Plain("未找到相关的乐土list信息。")]
@@ -215,28 +220,25 @@ class ElysianRealmAssistant(BasePlugin):
                 image_url = f"https://raw.githubusercontent.com/BiFangKNT/ElysianRealm-Data/refs/heads/master/{key}.jpg"
                 image_data = await self.get_image(image_url, ctx)
                 if image_data and isinstance(image_data, platform_types.Image):
-                    return [
-                        platform_types.Plain("已为您找到攻略：\n"),
-                        image_data
-                    ]
+                    return [platform_types.Plain("已为您找到攻略：\n"), image_data]
         return [platform_types.Plain("未找到相关的乐土攻略。")]
 
-    async def get_image(self, url, ctx, client: Optional[httpx.AsyncClient] = None, preload: bool = False):
+    async def get_image(self, url, ctx, client: httpx.AsyncClient | None = None, preload: bool = False):
         start_time = time.time()
 
         def _read_file_bytes(path: str) -> bytes:
-            with open(path, 'rb') as file:
+            with open(path, "rb") as file:
                 return file.read()
 
         def _write_file_bytes(path: str, data: bytes) -> None:
-            with open(path, 'wb') as file:
+            with open(path, "wb") as file:
                 file.write(data)
 
         try:
             url_md5 = hashlib.md5(url.encode()).hexdigest()
 
             plugin_dir = os.path.dirname(os.path.abspath(__file__))
-            cache_dir = os.path.join(plugin_dir, 'cache')
+            cache_dir = os.path.join(plugin_dir, "cache")
             await asyncio.to_thread(lambda: os.makedirs(cache_dir, exist_ok=True))
             cache_path = os.path.join(cache_dir, f"{url_md5}.jpg")
 
@@ -250,12 +252,12 @@ class ElysianRealmAssistant(BasePlugin):
 
                 if preload:
                     return True
-                return platform_types.Image(base64=base64.b64encode(image_data).decode('utf-8'))
+                return platform_types.Image(base64=base64.b64encode(image_data).decode("utf-8"))
 
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
-                'Connection': 'keep-alive'
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                "Connection": "keep-alive",
             }
 
             async def _download_image(active_client: httpx.AsyncClient):
@@ -272,7 +274,7 @@ class ElysianRealmAssistant(BasePlugin):
                     download_time = max(time.time() - dns_start, 1e-6)
                     self.ap.logger.debug(f"图片大小: {size_mb:.2f}MB")
                     self.ap.logger.debug(f"下载用时: {download_time:.2f}秒")
-                    self.ap.logger.debug(f"下载速度: {size_mb/download_time:.2f}MB/s")
+                    self.ap.logger.debug(f"下载速度: {size_mb / download_time:.2f}MB/s")
 
                     save_start = time.time()
                     await asyncio.to_thread(_write_file_bytes, cache_path, content)
@@ -284,13 +286,15 @@ class ElysianRealmAssistant(BasePlugin):
 
                     if preload:
                         return True
-                    return platform_types.Image(base64=base64.b64encode(content).decode('utf-8'))
+                    return platform_types.Image(base64=base64.b64encode(content).decode("utf-8"))
 
                 self.ap.logger.info(f"下载图片失败，状态码: {response.status_code}")
                 if not preload:
-                    await ctx.reply(platform_types.MessageChain([
-                        platform_types.Plain(f"图片下载失败，状态码: {response.status_code}")
-                    ]))
+                    await ctx.reply(
+                        platform_types.MessageChain(
+                            [platform_types.Plain(f"图片下载失败，状态码: {response.status_code}")]
+                        )
+                    )
                 return False if preload else None
 
             if client is None:
@@ -315,7 +319,7 @@ class ElysianRealmAssistant(BasePlugin):
         """
 
         def _clear():
-            cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cache')
+            cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
             if not os.path.exists(cache_dir):
                 return
 
@@ -329,10 +333,7 @@ class ElysianRealmAssistant(BasePlugin):
                     except Exception as e:
                         self.ap.logger.info(f"删除缓存文件失败: {str(e)}")
 
-            total_size = sum(
-                os.path.getsize(os.path.join(cache_dir, f))
-                for f in os.listdir(cache_dir)
-            ) / (1024 * 1024)
+            total_size = sum(os.path.getsize(os.path.join(cache_dir, f)) for f in os.listdir(cache_dir)) / (1024 * 1024)
 
             if total_size > max_size_mb:
                 files = [
@@ -359,20 +360,20 @@ class ElysianRealmAssistant(BasePlugin):
         try:
             # 解析命令
             _, _, key, values = command.split(None, 3)
-            value_list = [v.strip() for v in values.split(',')]
-            
+            value_list = [v.strip() for v in values.split(",")]
+
             # 读取当前配置
             plugin_dir = os.path.dirname(os.path.abspath(__file__))
-            config_path = os.path.join(plugin_dir, 'ElysianRealmConfig.yaml')
+            config_path = os.path.join(plugin_dir, "ElysianRealmConfig.yaml")
 
             def _read_config() -> dict:
                 if not os.path.exists(config_path):
                     return {}
-                with open(config_path, 'r', encoding='utf-8') as file:
+                with open(config_path, encoding="utf-8") as file:
                     return yaml.safe_load(file) or {}
 
             config = await asyncio.to_thread(_read_config)
-            
+
             # 更新或添加键值对
             if key in config:
                 # 添加新值到现有列表，避免重复
@@ -380,14 +381,14 @@ class ElysianRealmAssistant(BasePlugin):
             else:
                 # 创建新的键值对
                 config[key] = value_list
-            
+
             # 写回文件
             def _write_config(data: dict) -> None:
-                with open(config_path, 'w', encoding='utf-8') as file:
+                with open(config_path, "w", encoding="utf-8") as file:
                     yaml.dump(data, file, allow_unicode=True, sort_keys=False)
 
             await asyncio.to_thread(_write_config, config)
-            
+
             # 重新加载配置
             self.config = config
 
@@ -396,7 +397,7 @@ class ElysianRealmAssistant(BasePlugin):
                 return [platform_types.Plain(f"已成功添加/更新配置：\n{key}:\n  - " + "\n  - ".join(config[key]))]
             else:
                 return [platform_types.Plain("添加配置失败。")]
-            
+
         except Exception as e:
             self.ap.logger.info(f"添加配置时发生错误: {str(e)}")
             return [platform_types.Plain(f"添加配置失败: {str(e)}")]

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本文件给 Codex 等代码代理提供仓库维护说明。
+本文件给 Codex 等agent提供仓库维护说明。
 
 ## 项目概览
 
@@ -95,6 +95,12 @@
 ```powershell
 uv sync
 ```
+
+虚拟环境协作：
+
+- 不共享同一个 venv；user可用默认 `.venv`，agent用自己可写的本地环境。
+- agent可设置 `UV_PROJECT_ENVIRONMENT` 指向本地忽略目录，例如 `.codex-venv`。
+- 依赖版本以 `uv.lock` 为准，不在项目配置中写死本地 venv 路径。
 
 运行语法检查：
 
