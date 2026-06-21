@@ -1,4 +1,4 @@
-langbot-plugin
+langbot-plugin>=0.4.5
 PyYAML
 httpx
 regex

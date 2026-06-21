@@ -9,7 +9,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "httpx>=0.28.1",
-    "langbot-plugin>=0.1.2",
+    "langbot-plugin>=0.4.5",
     "pyyaml>=6.0.2",
     "regex>=2025.9.1",
 ]
@@ -35,19 +35,14 @@ select = [
     "UP",
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"main.py" = [
-    "F401",  # v1 兼容层保留的旧 SDK 导入
-    "F403",  # v1 事件类型沿用通配符导入
-    "F405",  # 事件名来自 v1 通配符导入
-    "I001",  # 迁移 v4 前暂不改动旧入口导入顺序
-]
-
 [tool.pyright]
 pythonVersion = "3.10"
 typeCheckingMode = "basic"
-stubPath = "typings"
-include = ["main.py"]
+include = [
+    "main.py",
+    "core.py",
+    "components",
+]
 exclude = [
     ".venv",
     "cache",

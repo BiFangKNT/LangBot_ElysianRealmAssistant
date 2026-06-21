@@ -1,12 +1,19 @@
 # AGENTS.md
 
-本文件给 Codex 等agent提供仓库维护说明。
+本文件给 Codex 等 agent 提供仓库维护说明。
 
 ## 项目概览
 
 这是一个 LangBot 插件，插件名为 `ElysianRealmAssistant`，用于响应崩坏3 往世乐土相关查询，返回推荐攻略、角色攻略图片或配置列表。
 
-当前插件版本在 [main.py](main.py) 的 `@register(...)` 中声明为 `1.7.0`。
+当前分支已迁移到 LangBot Plugin SDK v4 结构：
+
+- 插件入口由 [manifest.yaml](manifest.yaml) 声明。
+- [main.py](main.py) 只保留 `BasePlugin` 入口类，并初始化核心逻辑。
+- 事件监听器位于 [components/event_listener/default.py](components/event_listener/default.py)。
+- 业务逻辑集中在 [core.py](core.py)。
+
+当前插件版本在 [manifest.yaml](manifest.yaml) 的 `metadata.version` 中声明为 `1.7.0`。
 
 ## 运行环境
 
@@ -17,7 +24,7 @@
 
 核心依赖：
 
-- `langbot-plugin`
+- `langbot-plugin>=0.4.5`
 - `PyYAML`
 - `httpx`
 - `regex`
@@ -26,30 +33,31 @@
 
 ## 主要文件
 
-- [main.py](main.py)：插件主体逻辑，包含注册、消息处理、查询路由、网络请求、图片缓存、配置更新。
+- [manifest.yaml](manifest.yaml)：LangBot v4 插件清单，声明插件元信息、组件目录和 Python 入口。
+- [main.py](main.py)：v4 插件主入口，创建 `ElysianRealmAssistantCore`。
+- [components/event_listener/default.py](components/event_listener/default.py)：事件监听器，注册私聊/群聊普通消息事件。
+- [core.py](core.py)：插件业务逻辑，包含指令匹配、查询路由、网络请求、图片缓存、配置更新。
 - [ElysianRealmConfig.yaml](ElysianRealmConfig.yaml)：角色攻略键与用户可输入别名的映射。
-- [pyproject.toml](pyproject.toml)：项目元数据、Python 版本和依赖声明。
+- [pyproject.toml](pyproject.toml)：项目元数据、Python 版本、依赖和检查工具配置。
 - [uv.lock](uv.lock)：`uv` 锁文件。
 - [README.md](README.md)：面向用户的安装和使用说明。
 
 ## 插件入口与消息流程
 
-插件通过 `@register(...)` 注册 `ElysianRealmAssistant` 类，并监听：
+LangBot v4 通过 [manifest.yaml](manifest.yaml) 加载插件：
 
-- `PersonNormalMessageReceived`
-- `GroupNormalMessageReceived`
-
-处理流程：
-
-1. `initialize()` 加载 `ElysianRealmConfig.yaml`，并清理过期缓存。
-2. `on_message()` 将私聊/群聊普通消息交给 `ElysianRealmAssistant(ctx)`。
-3. 正则 `self.url_pattern` 判断是否为插件指令。
-4. `convert_message()` 根据指令类型路由到对应处理函数。
-5. 命中后通过 LangBot 消息链返回文本或图片，并调用 `prevent_default()` / `prevent_postorder()`。
+1. `execution.python` 指向 [main.py](main.py) 的 `ElysianRealmAssistant`。
+2. `ElysianRealmAssistant.initialize()` 创建并初始化 `ElysianRealmAssistantCore`。
+3. `components.EventListener.fromDirs` 加载 [components/event_listener/default.py](components/event_listener/default.py)。
+4. `DefaultEventListener.initialize()` 注册：
+   - `PersonNormalMessageReceived`
+   - `GroupNormalMessageReceived`
+5. `DefaultEventListener.on_message()` 提取文本消息，并交给 `core.handle_message(...)`。
+6. `core.handle_message(...)` 根据正则判断是否为插件指令，命中后返回文本或图片消息链，并调用 `prevent_default()` / `prevent_postorder()`。
 
 ## 支持的指令
 
-正则入口定义在 `main.py` 的 `self.url_pattern`。当前支持：
+正则入口定义在 [core.py](core.py) 的 `ElysianRealmAssistantCore.url_pattern`。当前支持：
 
 - `乐土list`
 - `[关键词]乐土list`
@@ -72,7 +80,7 @@
 
 角色攻略：
 
-- 根据 `ElysianRealmConfig.yaml` 匹配用户输入。
+- 根据 [ElysianRealmConfig.yaml](ElysianRealmConfig.yaml) 匹配用户输入。
 - 命中后拼接 GitHub Raw 图片地址：
   `https://raw.githubusercontent.com/BiFangKNT/ElysianRealm-Data/refs/heads/master/{key}.jpg`
 
@@ -93,26 +101,26 @@
 安装依赖：
 
 ```powershell
-uv sync
+uv sync --locked --dev
 ```
 
-虚拟环境协作：
+人和 agent 不共享同一个 venv。用户可继续使用默认 `.venv`；agent 可在自己的 session 中设置 `UV_PROJECT_ENVIRONMENT` 指向本地忽略目录，例如 `.codex-venv`。依赖版本以 [uv.lock](uv.lock) 为准，不在项目配置中写死本地 venv 路径。
 
-- 不共享同一个 venv；user可用默认 `.venv`，agent用自己可写的本地环境。
-- agent可设置 `UV_PROJECT_ENVIRONMENT` 指向本地忽略目录，例如 `.codex-venv`。
-- 依赖版本以 `uv.lock` 为准，不在项目配置中写死本地 venv 路径。
-
-运行语法检查：
+检查命令：
 
 ```powershell
-uv run python -m py_compile main.py
+uv run --locked --dev ruff check .
+uv run --locked --dev ruff format --check .
+uv run --locked --dev pyright
+uv run --locked --dev python -m py_compile main.py core.py components/event_listener/default.py
 ```
 
-当前仓库没有发现专门的测试脚本；修改后至少运行语法检查。
+当前仓库没有专门的测试脚本；修改后至少运行语法检查，涉及类型或风格时同步运行 Ruff 和 Pyright。
 
 ## 维护注意事项
 
+- 保持 v4 结构：LangBot 接入层放在 [main.py](main.py) 和 `components/`，业务逻辑放在 [core.py](core.py)。
 - 保持异步实现风格：网络请求使用 `httpx.AsyncClient`，阻塞文件 IO 通过 `asyncio.to_thread(...)` 包裹。
 - 配置文件读写使用 UTF-8 和 `yaml.safe_load` / `yaml.dump(..., allow_unicode=True, sort_keys=False)`。
-- 发送图片时当前实现使用 `platform_types.Image(base64=...)`。
+- 发送图片时使用 `langbot_plugin.api.entities.builtin.platform.message.Image`，并传入带 MIME 前缀的 base64 data URL。
 - 变更用户指令匹配逻辑时，同步检查 README 中的使用说明和截图语义。
