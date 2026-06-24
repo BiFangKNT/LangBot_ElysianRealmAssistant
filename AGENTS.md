@@ -13,7 +13,7 @@
 - 事件监听器位于 [components/event_listener/default.py](components/event_listener/default.py)。
 - 业务逻辑集中在 [core.py](core.py)。
 
-当前插件版本在 [manifest.yaml](manifest.yaml) 的 `metadata.version` 中声明为 `1.7.0`。
+当前插件版本在 [manifest.yaml](manifest.yaml) 的 `metadata.version` 中声明为 `1.8.0`。
 
 ## 运行环境
 
