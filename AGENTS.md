@@ -122,5 +122,5 @@ uv run --locked --dev python -m py_compile main.py core.py components/event_list
 - 保持 v4 结构：LangBot 接入层放在 [main.py](main.py) 和 `components/`，业务逻辑放在 [core.py](core.py)。
 - 保持异步实现风格：网络请求使用 `httpx.AsyncClient`，阻塞文件 IO 通过 `asyncio.to_thread(...)` 包裹。
 - 配置文件读写使用 UTF-8 和 `yaml.safe_load` / `yaml.dump(..., allow_unicode=True, sort_keys=False)`。
-- 发送图片时使用 `langbot_plugin.api.entities.builtin.platform.message.Image`，并传入带 MIME 前缀的 base64 data URL。
+- 发送图片时使用 `langbot_plugin.api.entities.builtin.platform.message.Image`，并传入裸 base64；LangBot 的 aiocqhttp 适配器会自行补 `base64://` 前缀。
 - 变更用户指令匹配逻辑时，同步检查 README 中的使用说明和截图语义。

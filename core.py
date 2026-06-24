@@ -380,4 +380,5 @@ def plain(text: str) -> platform_message.Plain:
 
 def image_from_bytes(data: bytes) -> platform_message.Image:
     encoded = base64.b64encode(data).decode("utf-8")
-    return platform_message.Image(base64=f"data:image/jpeg;base64,{encoded}")
+    # LangBot's aiocqhttp adapter adds the `base64://` prefix itself.
+    return platform_message.Image(base64=encoded)
